@@ -4,13 +4,17 @@ const dotenv = require('dotenv');
 const connectDB = require('./src/config/database');
 
 // Configuration des variables d'environnement
+// On charge le fichier env.dev par défaut pour le développement
 dotenv.config({ path: './env.dev' });
+
+// Import de la configuration d'environnement
+const env = require('./src/config/env');
 
 const app = express();
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: env.CORS_ORIGIN,
   credentials: true
 }));
 app.use(express.json());
@@ -33,7 +37,11 @@ app.use((err, req, res, next) => {
 });
 
 // Port
-const PORT = process.env.PORT || 3001;
+const PORT = env.PORT;
 app.listen(PORT, () => {
-  console.log(`Serveur démarré sur le port ${PORT}`);
+  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
+  console.log(`🌍 Environnement: ${env.NODE_ENV}`);
+  console.log(`🔗 CORS Origin: ${env.CORS_ORIGIN}`);
+  console.log(`📊 MongoDB URI configurée: ${env.MONGODB_URI ? '✅' : '❌'}`);
+  console.log(`🔐 JWT Secret configuré: ${env.JWT_SECRET ? '✅' : '❌'}`);
 }); 

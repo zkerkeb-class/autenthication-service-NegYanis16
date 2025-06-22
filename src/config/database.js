@@ -1,10 +1,16 @@
 const mongoose = require('mongoose');
-require('dotenv').config();
+const env = require('./env');
 
 const connectDB = async () => {
   try {
     mongoose.set('strictQuery', false);
-    const uri = `mongodb+srv://yanis:yanis2001@cluster1.osxbdyf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1`;
+    
+    // Utilisation de l'URI MongoDB depuis les variables d'environnement
+    const uri = env.MONGODB_URI;
+    
+    if (!uri) {
+      throw new Error('MONGODB_URI n\'est pas définie dans les variables d\'environnement');
+    }
     
     await mongoose.connect(uri, {
       useNewUrlParser: true,
@@ -13,9 +19,9 @@ const connectDB = async () => {
       socketTimeoutMS: 45000,
     });
 
-    console.log('Connexion à MongoDB établie avec succès');
+    console.log('✅ Connexion à MongoDB établie avec succès');
   } catch (err) {
-    console.error('Erreur de connexion à MongoDB:', err.message);
+    console.error('❌ Erreur de connexion à MongoDB:', err.message);
     process.exit(1);
   }
 };

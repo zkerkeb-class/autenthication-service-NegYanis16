@@ -22,6 +22,7 @@ exports.register = async (req, res) => {
     await user.save();
 
     // Créer le token JWT
+    
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET || 'votre_secret_jwt',
@@ -49,15 +50,33 @@ exports.login = async (req, res) => {
     if (!isMatch) {
       return res.status(400).json({ message: 'Identifiants invalides' });
     }
-
+    console.log(process.env.JWT_SECRET);
     // Créer le token JWT
     const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET || 'votre_secret_jwt',
+      process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
 
     res.json({ token });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+exports.logout = (req, res) => {
+  // Pour JWT stateless, le logout se fait côté client (suppression du token)
+  // Ici, on peut juste renvoyer un message de succès
+  res.json({ message: 'Déconnexion réussie' });
+};
+
+exports.me = async (req, res) => {
+  try {
+    const user = await User.findById(req.userData.userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+    res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }

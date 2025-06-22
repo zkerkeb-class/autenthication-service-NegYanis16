@@ -12,4 +12,10 @@ router.get('/profile', auth, (req, res) => {
   res.json({ message: 'Route protégée', userId: req.userData.userId });
 });
 
+// Infos utilisateur connecté
+router.get('/me', auth, authController.me);
+
+// Déconnexion
+router.post('/logout', authController.logout);
+
 module.exports = router; 
