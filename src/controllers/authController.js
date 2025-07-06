@@ -1,13 +1,17 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { recordAuthAttempt, recordAuthDuration } = require('../middleware/metrics');
 
 exports.register = async (req, res) => {
+  const startTime = Date.now();
   try {
     const { email, password, niveau, classe, nom, prenom } = req.body;
 
     // Vérifier si l'utilisateur existe déjà
     let user = await User.findOne({ email });
     if (user) {
+      recordAuthAttempt('register', false, 'local');
+      recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
       return res.status(400).json({ message: 'Cet utilisateur existe déjà' });
     }
 
@@ -56,28 +60,40 @@ exports.register = async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Enregistrer le succès de l'inscription
+    recordAuthAttempt('register', true, 'local');
+    recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
+
     res.status(201).json({ 
       token,
       message: 'Inscription réussie ! Un email de bienvenue vous a été envoyé.'
     });
   } catch (error) {
+    // Enregistrer l'échec de l'inscription
+    recordAuthAttempt('register', false, 'local');
+    recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 
 exports.login = async (req, res) => {
+  const startTime = Date.now();
   try {
     const { email, password } = req.body;
 
     // Vérifier si l'utilisateur existe
     const user = await User.findOne({ email });
     if (!user) {
+      recordAuthAttempt('login', false, 'local');
+      recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
       return res.status(400).json({ message: 'Identifiants invalides' });
     }
 
     // Vérifier le mot de passe
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      recordAuthAttempt('login', false, 'local');
+      recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
       return res.status(400).json({ message: 'Identifiants invalides' });
     }
     console.log(process.env.JWT_SECRET);
@@ -88,8 +104,15 @@ exports.login = async (req, res) => {
       { expiresIn: '24h' }
     );
 
+    // Enregistrer le succès de la connexion
+    recordAuthAttempt('login', true, 'local');
+    recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
+
     res.json({ token });
   } catch (error) {
+    // Enregistrer l'échec de la connexion
+    recordAuthAttempt('login', false, 'local');
+    recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -97,6 +120,7 @@ exports.login = async (req, res) => {
 exports.logout = (req, res) => {
   // Pour JWT stateless, le logout se fait côté client (suppression du token)
   // Ici, on peut juste renvoyer un message de succès
+  recordAuthAttempt('logout', true, 'local');
   res.json({ message: 'Déconnexion réussie' });
 };
 

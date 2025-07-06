@@ -11,6 +11,9 @@ const connectDB = require('./src/config/database');
 // Import de la configuration d'environnement
 const env = require('./src/config/env');
 
+// Import du middleware de métriques
+const { metricsMiddleware } = require('./src/middleware/metrics');
+
 const app = express();
 
 // Middleware
@@ -19,6 +22,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Middleware de métriques (doit être placé avant les routes)
+app.use(metricsMiddleware);
 
 // Configuration des sessions (AVANT Passport)
 app.use(session({
@@ -44,6 +50,9 @@ app.use('/api/auth', require('./src/routes/auth'));
 app.use('/api/user', require('./src/routes/user'));
 app.use('/api/google', require('./src/routes/googleRoutes'));
 
+// Route de métriques Prometheus
+app.use('/metrics', require('./src/routes/metrics'));
+
 // Route de test
 app.get('/', (req, res) => {
   res.json({ message: 'API en ligne' });
@@ -64,4 +73,5 @@ app.listen(PORT, () => {
   console.log(`📊 MongoDB URI configurée: ${env.MONGODB_URI ? '✅' : '❌'}`);
   console.log(`🔐 JWT Secret configuré: ${env.JWT_SECRET ? '✅' : '❌'}`);
   console.log(`🔑 Session Secret configuré: ${process.env.SESSION_SECRET ? '✅' : '❌'}`);
+  console.log(`📈 Métriques Prometheus disponibles sur: http://localhost:${PORT}/metrics`);
 }); 
