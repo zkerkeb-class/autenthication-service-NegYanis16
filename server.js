@@ -1,11 +1,12 @@
 const express = require('express');
+const passport = require('./src/config/passeport');
+const session = require('express-session');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const connectDB = require('./src/config/database');
 
 // Configuration des variables d'environnement
 // On charge le fichier env.dev par défaut pour le développement
-dotenv.config({ path: './env.dev' });
+
 
 // Import de la configuration d'environnement
 const env = require('./src/config/env');
@@ -19,11 +20,29 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Configuration des sessions (AVANT Passport)
+app.use(session({
+  secret: env.SESSION_SECRET || 'votre_session_secret_tres_long_et_complexe',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    secure: process.env.NODE_ENV === 'production', // true en production
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000 // 24 heures
+  }
+}));
+
 // Connexion à MongoDB
 connectDB();
 
+// Initialisation de Passport (APRÈS les sessions)
+app.use(passport.initialize());
+app.use(passport.session());
+
 // Routes
 app.use('/api/auth', require('./src/routes/auth'));
+app.use('/api/user', require('./src/routes/user'));
+app.use('/api/google', require('./src/routes/googleRoutes'));
 
 // Route de test
 app.get('/', (req, res) => {
@@ -44,4 +63,5 @@ app.listen(PORT, () => {
   console.log(`🔗 CORS Origin: ${env.CORS_ORIGIN}`);
   console.log(`📊 MongoDB URI configurée: ${env.MONGODB_URI ? '✅' : '❌'}`);
   console.log(`🔐 JWT Secret configuré: ${env.JWT_SECRET ? '✅' : '❌'}`);
+  console.log(`🔑 Session Secret configuré: ${process.env.SESSION_SECRET ? '✅' : '❌'}`);
 }); 

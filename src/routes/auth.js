@@ -18,4 +18,7 @@ router.get('/me', auth, authController.me);
 // Déconnexion
 router.post('/logout', authController.logout);
 
+// Route pour vérifier si le profil est complet
+router.get('/profile-status', auth, authController.getProfileStatus);
+
 module.exports = router; 

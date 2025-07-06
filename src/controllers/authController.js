@@ -3,7 +3,7 @@ const User = require('../models/User');
 
 exports.register = async (req, res) => {
   try {
-    const { email, password, niveau, classe } = req.body;
+    const { email, password, niveau, classe, nom, prenom } = req.body;
 
     // Vérifier si l'utilisateur existe déjà
     let user = await User.findOne({ email });
@@ -13,6 +13,8 @@ exports.register = async (req, res) => {
 
     // Créer un nouvel utilisateur
     user = new User({
+      nom,
+      prenom,
       email,
       password,
       niveau,
@@ -21,15 +23,43 @@ exports.register = async (req, res) => {
 
     await user.save();
 
+    // Envoyer l'email de bienvenue
+    try {
+      const response = await fetch(`${process.env.NOTIFICATION_SERVICE_URL}/api/send-welcome-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': process.env.NOTIF_API_KEY
+        },
+        body: JSON.stringify({
+          email: user.email,
+          firstName: user.prenom,
+          lastName: user.nom
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', errorData);
+      } else {
+        console.log('Email de bienvenue envoyé avec succès à:', user.email);
+      }
+    } catch (emailError) {
+      console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', emailError.message);
+      // On ne fait pas échouer l'inscription si l'email échoue
+    }
+
     // Créer le token JWT
-    
     const token = jwt.sign(
       { userId: user._id },
       process.env.JWT_SECRET || 'votre_secret_jwt',
       { expiresIn: '24h' }
     );
 
-    res.status(201).json({ token });
+    res.status(201).json({ 
+      token,
+      message: 'Inscription réussie ! Un email de bienvenue vous a été envoyé.'
+    });
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
@@ -80,4 +110,45 @@ exports.me = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
-}; 
+};
+
+// Nouvelle méthode pour vérifier le statut du profil
+exports.getProfileStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.userData.userId).select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    const isComplete = user.isProfileComplete();
+    
+    res.json({
+      profileCompleted: isComplete,
+      missingFields: isComplete ? [] : getMissingFields(user),
+      user: {
+        id: user._id,
+        email: user.email,
+        nom: user.nom,
+        prenom: user.prenom,
+        niveau: user.niveau,
+        classe: user.classe,
+        authProvider: user.authProvider
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Erreur serveur', error: error.message });
+  }
+};
+
+// Fonction utilitaire pour identifier les champs manquants
+function getMissingFields(user) {
+  const missing = [];
+  
+  if (!user.nom) missing.push('nom');
+  if (!user.prenom) missing.push('prenom');
+  if (!user.niveau) missing.push('niveau');
+  if (!user.classe) missing.push('classe');
+  
+  return missing;
+} 
