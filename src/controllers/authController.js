@@ -1,31 +1,26 @@
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const User = require('../models/User');
 const { recordAuthAttempt, recordAuthDuration } = require('../middleware/metrics');
+const DB_SERVICE_URL = 'http://localhost:3006/api/v1';
 
 exports.register = async (req, res) => {
   const startTime = Date.now();
   try {
     const { email, password, niveau, classe, nom, prenom } = req.body;
 
-    // Vérifier si l'utilisateur existe déjà
-    let user = await User.findOne({ email });
-    if (user) {
+    // Vérifier si l'utilisateur existe déjà via le service BDD
+    const existing = await axios.get(`${DB_SERVICE_URL}/users/email/${email}`);
+    if (existing.data) {
       recordAuthAttempt('register', false, 'local');
       recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
       return res.status(400).json({ message: 'Cet utilisateur existe déjà' });
     }
 
-    // Créer un nouvel utilisateur
-    user = new User({
-      nom,
-      prenom,
-      email,
-      password,
-      niveau,
-      classe
+    // Créer l'utilisateur via le service BDD
+    const { data: user } = await axios.post(`${DB_SERVICE_URL}/users`, {
+      nom, prenom, email, password, niveau, classe, authProvider: 'local'
     });
-
-    await user.save();
 
     // Envoyer l'email de bienvenue
     try {
@@ -81,22 +76,22 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // Vérifier si l'utilisateur existe
-    const user = await User.findOne({ email });
+    // Récupérer l'utilisateur via le service BDD
+    const { data: user } = await axios.get(`${DB_SERVICE_URL}/users/email/${email}`);
     if (!user) {
       recordAuthAttempt('login', false, 'local');
       recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
       return res.status(400).json({ message: 'Identifiants invalides' });
     }
 
-    // Vérifier le mot de passe
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
+    // Vérifier le mot de passe via le service BDD
+    const { data: result } = await axios.post(`${DB_SERVICE_URL}/users/${user._id}/verify-password`, { password });
+    if (!result.valid) {
       recordAuthAttempt('login', false, 'local');
       recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
       return res.status(400).json({ message: 'Identifiants invalides' });
     }
-    console.log(process.env.JWT_SECRET);
+
     // Créer le token JWT
     const token = jwt.sign(
       { userId: user._id },

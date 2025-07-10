@@ -1,9 +1,7 @@
 const passport = require('passport');
 const env = require('../config/env');
-const User = require('../models/User');
-
-
-
+const axios = require('axios');
+const DB_SERVICE_URL = 'http://localhost:3006/api/v1';
 
 /**
  * Initialise l'authentification Google
@@ -111,14 +109,10 @@ exports.getUserData = (req, res) => {
 exports.completeProfile = async (req, res) => {
   try {
     const { niveau, classe } = req.body;
-    
-    // Récupérer l'ID utilisateur selon le type d'authentification
     let userId;
     if (req.isAuthenticated()) {
-      // Authentification Google (sessions)
       userId = req.user._id;
     } else if (req.userData) {
-      // Authentification JWT
       userId = req.userData.userId;
     } else {
       return res.status(401).json({
@@ -160,10 +154,10 @@ exports.completeProfile = async (req, res) => {
       profileCompleted: true
     };
 
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      updateData,
-      { new: true, runValidators: true }
+    // MAJ via le service BDD
+    const { data: updatedUser } = await axios.put(
+      `${DB_SERVICE_URL}/users/${userId}`,
+      updateData
     );
 
     if (!updatedUser) {
@@ -188,17 +182,7 @@ exports.completeProfile = async (req, res) => {
     res.json({
       success: true,
       message: 'Profil complété avec succès',
-      user: {
-        _id: updatedUser._id,
-        email: updatedUser.email,
-        nom: updatedUser.nom,
-        prenom: updatedUser.prenom,
-        niveau: updatedUser.niveau,
-        classe: updatedUser.classe,
-        authProvider: updatedUser.authProvider,
-        avatar: updatedUser.avatar,
-        profileCompleted: updatedUser.profileCompleted
-      },
+      user: updatedUser,
       token: newToken
     });
 
