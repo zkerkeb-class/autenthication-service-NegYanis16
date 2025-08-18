@@ -2,7 +2,7 @@ const passport = require('passport');
 const { Strategy: OpenIDConnectStrategy } = require('passport-openidconnect');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-
+const logger = require('./logger');
 
 const env = require('./env');
 
@@ -18,7 +18,7 @@ passport.use('google', new OpenIDConnectStrategy({
   scope: ['profile', 'email']
 }, async (issuer, profile, done) => {
   try {
-    console.log('Profile Google reçu:', profile);
+    logger.info(`Profile Google reçu pour: ${profile.emails[0].value}`);
     
     // Chercher si l'utilisateur existe déjà
     let user = await User.findOne({ 
@@ -34,7 +34,9 @@ passport.use('google', new OpenIDConnectStrategy({
         // Utilisateur existant avec email/password, ajouter Google
         user.mergeWithGoogle(profile);
         await user.save();
-        console.log('Compte fusionné avec Google:', user.email);
+        logger.info(`Compte fusionné avec Google: ${user.email}`);
+      } else {
+        logger.info(`Utilisateur Google existant connecté: ${user.email}`);
       }
     } else {
       // Créer un nouvel utilisateur Google
@@ -50,7 +52,7 @@ passport.use('google', new OpenIDConnectStrategy({
         classe: null
       });
       await user.save();
-      console.log('Nouvel utilisateur Google créé:', user.email);
+      logger.info(`Nouvel utilisateur Google créé: ${user.email}`);
     }
 
     // Générer un token JWT pour l'utilisateur
