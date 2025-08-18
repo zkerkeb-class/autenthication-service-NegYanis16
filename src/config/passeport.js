@@ -8,12 +8,12 @@ const env = require('./env');
 
 // Configuration de la stratégie OpenID Connect pour Google
 passport.use('google', new OpenIDConnectStrategy({
-  issuer: 'https://accounts.google.com',
+  issuer: env.GOOGLE_OAUTH_ISSUER || 'https://accounts.google.com',
   clientID: env.GOOGLE_CLIENT_ID,
   clientSecret: env.GOOGLE_CLIENT_SECRET,
-  authorizationURL: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenURL: 'https://oauth2.googleapis.com/token',
-  userInfoURL: 'https://openidconnect.googleapis.com/v1/userinfo',
+  authorizationURL: env.GOOGLE_AUTHORIZATION_URL || 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenURL: env.GOOGLE_TOKEN_URL || 'https://oauth2.googleapis.com/token',
+  userInfoURL: env.GOOGLE_USERINFO_URL || 'https://openidconnect.googleapis.com/v1/userinfo',
   callbackURL: `${env.BASE_URL}/api/google/google/callback`,
   scope: ['profile', 'email']
 }, async (issuer, profile, done) => {
