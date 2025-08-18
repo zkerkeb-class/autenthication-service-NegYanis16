@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/User');
 const { recordAuthAttempt, recordAuthDuration } = require('../middleware/metrics');
-const DB_SERVICE_URL = 'http://localhost:3006/api/v1';
+const env = require('../config/env');
 
 exports.register = async (req, res) => {
   const startTime = Date.now();
@@ -10,7 +10,7 @@ exports.register = async (req, res) => {
     const { email, password, niveau, classe, nom, prenom } = req.body;
 
     // Vérifier si l'utilisateur existe déjà via le service BDD
-    const existing = await axios.get(`${DB_SERVICE_URL}/users/email/${email}`);
+    const existing = await axios.get(`${env.DB_SERVICE_URL}/users/email/${email}`);
     if (existing.data) {
       recordAuthAttempt('register', false, 'local');
       recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
@@ -18,7 +18,7 @@ exports.register = async (req, res) => {
     }
 
     // Créer l'utilisateur via le service BDD
-    const { data: user } = await axios.post(`${DB_SERVICE_URL}/users`, {
+    const { data: user } = await axios.post(`${env.DB_SERVICE_URL}/users`, {
       nom, prenom, email, password, niveau, classe, authProvider: 'local'
     });
 
@@ -77,7 +77,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     // Récupérer l'utilisateur via le service BDD
-    const { data: user } = await axios.get(`${DB_SERVICE_URL}/users/email/${email}`);
+    const { data: user } = await axios.get(`${env.DB_SERVICE_URL}/users/email/${email}`);
     if (!user) {
       recordAuthAttempt('login', false, 'local');
       recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
@@ -85,7 +85,7 @@ exports.login = async (req, res) => {
     }
 
     // Vérifier le mot de passe via le service BDD
-    const { data: result } = await axios.post(`${DB_SERVICE_URL}/users/${user._id}/verify-password`, { password });
+    const { data: result } = await axios.post(`${env.DB_SERVICE_URL}/users/${user._id}/verify-password`, { password });
     if (!result.valid) {
       recordAuthAttempt('login', false, 'local');
       recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);

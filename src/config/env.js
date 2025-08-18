@@ -36,6 +36,10 @@ const env = {
   // Configuration CORS
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
   
+  // URLs des services
+  DB_SERVICE_URL: process.env.DB_SERVICE_URL || 'http://localhost:3006/api/v1',
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:3000',
+  
   // Autres variables d'environnement
   ...process.env
 };

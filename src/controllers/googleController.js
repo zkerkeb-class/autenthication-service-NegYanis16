@@ -1,7 +1,6 @@
 const passport = require('passport');
 const env = require('../config/env');
 const axios = require('axios');
-const DB_SERVICE_URL = 'http://localhost:3006/api/v1';
 
 /**
  * Initialise l'authentification Google
