@@ -11,6 +11,10 @@ const connectDB = require('./src/config/database');
 // Import de la configuration d'environnement
 const env = require('./src/config/env');
 
+// Import du logger Winston
+const logger = require('./src/config/logger');
+const requestLogger = require('./src/middleware/requestLogger');
+
 // Import du middleware de métriques
 const { metricsMiddleware } = require('./src/middleware/metrics');
 
@@ -22,6 +26,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+
+// Middleware de logging des requêtes (avant les métriques)
+app.use(requestLogger);
 
 // Middleware de métriques (doit être placé avant les routes)
 app.use(metricsMiddleware);
@@ -58,20 +65,29 @@ app.get('/', (req, res) => {
   res.json({ message: 'API en ligne' });
 });
 
+// Route de santé pour Render (sans logs excessifs)
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    service: 'auth-service'
+  });
+});
+
 // Gestion des erreurs
 app.use((err, req, res, next) => {
-  console.error(err.stack);
+  logger.logError(err, 'EXPRESS_ERROR_HANDLER');
   res.status(500).json({ message: 'Une erreur est survenue', error: err.message });
 });
 
 // Port
 const PORT = env.PORT;
 app.listen(PORT, () => {
-  console.log(`🚀 Serveur démarré sur le port ${PORT}`);
-  console.log(`🌍 Environnement: ${env.NODE_ENV}`);
-  console.log(`🔗 CORS Origin: ${env.CORS_ORIGIN}`);
-  console.log(`📊 MongoDB URI configurée: ${env.MONGODB_URI ? '✅' : '❌'}`);
-  console.log(`🔐 JWT Secret configuré: ${env.JWT_SECRET ? '✅' : '❌'}`);
-  console.log(`🔑 Session Secret configuré: ${process.env.SESSION_SECRET ? '✅' : '❌'}`);
-  console.log(`📈 Métriques Prometheus disponibles sur: http://localhost:${PORT}/metrics`);
+  logger.info(`🚀 Serveur démarré sur le port ${PORT}`);
+  logger.info(`🌍 Environnement: ${env.NODE_ENV}`);
+  logger.info(`🔗 CORS Origin: ${env.CORS_ORIGIN}`);
+  logger.info(`📊 MongoDB URI configurée: ${env.MONGODB_URI ? '✅' : '❌'}`);
+  logger.info(`🔐 JWT Secret configuré: ${env.JWT_SECRET ? '✅' : '❌'}`);
+  logger.info(`🔑 Session Secret configuré: ${process.env.SESSION_SECRET ? '✅' : '❌'}`);
+  logger.info(`📈 Métriques Prometheus disponibles sur: http://localhost:${PORT}/metrics`);
 }); 

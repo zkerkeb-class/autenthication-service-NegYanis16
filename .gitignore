@@ -10,7 +10,7 @@ env.prod
 node_modules/
 
 # Logs
-*.log
+logs
 npm-debug.log*
 
 # Fichiers temporaires
