@@ -8,6 +8,7 @@ env.prod
 
 # Dépendances
 node_modules/
+coverage/
 
 # Logs
 logs
@@ -16,3 +17,7 @@ npm-debug.log*
 # Fichiers temporaires
 .DS_Store
 Thumbs.db
+
+# Coverage reports
+coverage/
+*.lcov
