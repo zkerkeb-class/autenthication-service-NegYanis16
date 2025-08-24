@@ -1,0 +1,85 @@
+name: Release Auth Service
+
+on:
+  push:
+    tags:
+      - 'auth-service-v*.*.*'
+
+jobs:
+  release-auth:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: 'autenthication-service-NegYanis16/package-lock.json'
+
+      - name: Install dependencies
+        working-directory: ./autenthication-service-NegYanis16
+        run: npm ci
+
+      - name: Run tests
+        working-directory: ./autenthication-service-NegYanis16
+        run: npm test
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/auth-service-v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Auth Service v${{ steps.get_version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          body: |
+            ## 🔐 Service d'Authentification v${{ steps.get_version.outputs.VERSION }}
+            
+            ### Changements
+            Voir le [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/autenthication-service-NegYanis16/CHANGELOG.md) pour les détails complets.
+            
+            ### 🚀 Fonctionnalités
+            - Authentification JWT
+            - Inscription/Connexion utilisateur
+            - OAuth Google intégré
+            - API RESTful sécurisée
+            - Monitoring et métriques
+            
+            ### 🔧 Installation
+            ```bash
+            git clone https://github.com/${{ github.repository }}.git
+            cd autenthication-service-NegYanis16
+            git checkout auth-service-v${{ steps.get_version.outputs.VERSION }}
+            npm install
+            npm start
+            ```
+            
+            ### 📋 Configuration requise
+            - Node.js 18+
+            - MongoDB
+            - Variables d'environnement configurées
+            
+            ### 🌐 Endpoints disponibles
+            - `POST /api/auth/register` - Inscription
+            - `POST /api/auth/login` - Connexion  
+            - `GET /api/auth/me` - Profil utilisateur
+            - `GET /api/google/google` - OAuth Google
+
+      - name: Build Docker image (optionnel)
+        working-directory: ./autenthication-service-NegYanis16
+        run: |
+          if [ -f "Dockerfile" ]; then
+            docker build -t auth-service:v${{ steps.get_version.outputs.VERSION }} .
+            echo "Docker image built: auth-service:v${{ steps.get_version.outputs.VERSION }}"
+          else
+            echo "No Dockerfile found, skipping Docker build"
+          fi
