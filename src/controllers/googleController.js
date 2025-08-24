@@ -1,7 +1,7 @@
 const passport = require('passport');
 const env = require('../config/env');
 const axios = require('axios');
-const DB_SERVICE_URL = 'http://localhost:3006/api/v1';
+const logger = require('../config/logger');
 
 /**
  * Initialise l'authentification Google
@@ -14,18 +14,21 @@ exports.googleAuth = passport.authenticate('google');
 exports.googleCallback = (req, res, next) => {
   passport.authenticate('google', (err, user, info) => {
     if (err) {
-      console.error('Erreur lors de l\'authentification Google:', err);
+      logger.logError(err, 'GOOGLE_AUTH_ERROR');
+      logger.logAuth('google_callback', false, 'google', 'unknown', `- Error: ${err.message}`);
       return res.redirect(`${env.FRONTEND_URL}/login?error=authentication_failed`);
     }
     
     if (!user) {
-      console.error('Aucun utilisateur retourné par Google');
+      logger.warn('Aucun utilisateur retourné par Google OAuth');
+      logger.logAuth('google_callback', false, 'google', 'unknown', '- No user returned');
       return res.redirect(`${env.FRONTEND_URL}/login?error=no_user`);
     }
     
     req.login(user, (err) => {
       if (err) {
-        console.error('Erreur lors de la connexion de session:', err);
+        logger.logError(err, 'GOOGLE_SESSION_ERROR');
+        logger.logAuth('google_session', false, 'google', user.email || 'unknown', `- Session error: ${err.message}`);
         return res.redirect(`${env.FRONTEND_URL}/login?error=session_error`);
       }
       
@@ -34,6 +37,10 @@ exports.googleCallback = (req, res, next) => {
       
       // Vérifier si le profil est complet (a niveau et classe)
       const isProfileComplete = user.niveau && user.classe;
+      
+      // Logger le succès de l'authentification Google
+      logger.logAuth('google_callback', true, 'google', user.email, 
+        `- Profile complete: ${isProfileComplete} - Redirecting to: ${isProfileComplete ? 'dashboard' : 'complete-profile'}`);
       
       // Rediriger selon le statut du profil
       const redirectUrl = isProfileComplete 

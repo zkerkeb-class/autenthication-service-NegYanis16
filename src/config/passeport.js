@@ -2,23 +2,23 @@ const passport = require('passport');
 const { Strategy: OpenIDConnectStrategy } = require('passport-openidconnect');
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
-
+const logger = require('./logger');
 
 const env = require('./env');
 
 // Configuration de la stratégie OpenID Connect pour Google
 passport.use('google', new OpenIDConnectStrategy({
-  issuer: 'https://accounts.google.com',
+  issuer: env.GOOGLE_OAUTH_ISSUER || 'https://accounts.google.com',
   clientID: env.GOOGLE_CLIENT_ID,
   clientSecret: env.GOOGLE_CLIENT_SECRET,
-  authorizationURL: 'https://accounts.google.com/o/oauth2/v2/auth',
-  tokenURL: 'https://oauth2.googleapis.com/token',
-  userInfoURL: 'https://openidconnect.googleapis.com/v1/userinfo',
+  authorizationURL: env.GOOGLE_AUTHORIZATION_URL || 'https://accounts.google.com/o/oauth2/v2/auth',
+  tokenURL: env.GOOGLE_TOKEN_URL || 'https://oauth2.googleapis.com/token',
+  userInfoURL: env.GOOGLE_USERINFO_URL || 'https://openidconnect.googleapis.com/v1/userinfo',
   callbackURL: `${env.BASE_URL}/api/google/google/callback`,
   scope: ['profile', 'email']
 }, async (issuer, profile, done) => {
   try {
-    console.log('Profile Google reçu:', profile);
+    logger.info(`Profile Google reçu pour: ${profile.emails[0].value}`);
     
     // Chercher si l'utilisateur existe déjà
     let user = await User.findOne({ 
@@ -34,7 +34,9 @@ passport.use('google', new OpenIDConnectStrategy({
         // Utilisateur existant avec email/password, ajouter Google
         user.mergeWithGoogle(profile);
         await user.save();
-        console.log('Compte fusionné avec Google:', user.email);
+        logger.info(`Compte fusionné avec Google: ${user.email}`);
+      } else {
+        logger.info(`Utilisateur Google existant connecté: ${user.email}`);
       }
     } else {
       // Créer un nouvel utilisateur Google
@@ -50,7 +52,7 @@ passport.use('google', new OpenIDConnectStrategy({
         classe: null
       });
       await user.save();
-      console.log('Nouvel utilisateur Google créé:', user.email);
+      logger.info(`Nouvel utilisateur Google créé: ${user.email}`);
     }
 
     // Générer un token JWT pour l'utilisateur

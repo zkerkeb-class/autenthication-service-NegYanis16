@@ -2,7 +2,8 @@ const jwt = require('jsonwebtoken');
 const axios = require('axios');
 const User = require('../models/User');
 const { recordAuthAttempt, recordAuthDuration } = require('../middleware/metrics');
-const DB_SERVICE_URL = 'http://localhost:3006/api/v1';
+const env = require('../config/env');
+const logger = require('../config/logger');
 
 exports.register = async (req, res) => {
   const startTime = Date.now();
@@ -10,7 +11,7 @@ exports.register = async (req, res) => {
     const { email, password, niveau, classe, nom, prenom } = req.body;
 
     // Vérifier si l'utilisateur existe déjà via le service BDD
-    const existing = await axios.get(`${DB_SERVICE_URL}/users/email/${email}`);
+    const existing = await axios.get(`${env.DB_SERVICE_URL}/users/email/${email}`);
     if (existing.data) {
       recordAuthAttempt('register', false, 'local');
       recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
@@ -18,7 +19,7 @@ exports.register = async (req, res) => {
     }
 
     // Créer l'utilisateur via le service BDD
-    const { data: user } = await axios.post(`${DB_SERVICE_URL}/users`, {
+    const { data: user } = await axios.post(`${env.DB_SERVICE_URL}/users`, {
       nom, prenom, email, password, niveau, classe, authProvider: 'local'
     });
 
@@ -39,12 +40,12 @@ exports.register = async (req, res) => {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', errorData);
+        logger.error(`Erreur lors de l'envoi de l'email de bienvenue pour ${user.email}:`, errorData);
       } else {
-        console.log('Email de bienvenue envoyé avec succès à:', user.email);
+        logger.info(`Email de bienvenue envoyé avec succès à: ${user.email}`);
       }
     } catch (emailError) {
-      console.error('Erreur lors de l\'envoi de l\'email de bienvenue:', emailError.message);
+      logger.error(`Erreur lors de l'envoi de l'email de bienvenue pour ${user.email}: ${emailError.message}`);
       // On ne fait pas échouer l'inscription si l'email échoue
     }
 
@@ -56,6 +57,7 @@ exports.register = async (req, res) => {
     );
 
     // Enregistrer le succès de l'inscription
+    logger.logAuth('register', true, 'local', email, `- User: ${nom} ${prenom}`);
     recordAuthAttempt('register', true, 'local');
     recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
 
@@ -65,6 +67,8 @@ exports.register = async (req, res) => {
     });
   } catch (error) {
     // Enregistrer l'échec de l'inscription
+    logger.logAuth('register', false, 'local', req.body.email, `- Error: ${error.message}`);
+    logger.logError(error, 'AUTH_REGISTER');
     recordAuthAttempt('register', false, 'local');
     recordAuthDuration('register', 'local', (Date.now() - startTime) / 1000);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -77,7 +81,7 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     // Récupérer l'utilisateur via le service BDD
-    const { data: user } = await axios.get(`${DB_SERVICE_URL}/users/email/${email}`);
+    const { data: user } = await axios.get(`${env.DB_SERVICE_URL}/users/email/${email}`);
     if (!user) {
       recordAuthAttempt('login', false, 'local');
       recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
@@ -85,7 +89,7 @@ exports.login = async (req, res) => {
     }
 
     // Vérifier le mot de passe via le service BDD
-    const { data: result } = await axios.post(`${DB_SERVICE_URL}/users/${user._id}/verify-password`, { password });
+    const { data: result } = await axios.post(`${env.DB_SERVICE_URL}/users/${user._id}/verify-password`, { password });
     if (!result.valid) {
       recordAuthAttempt('login', false, 'local');
       recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
@@ -100,12 +104,15 @@ exports.login = async (req, res) => {
     );
 
     // Enregistrer le succès de la connexion
+    logger.logAuth('login', true, 'local', email);
     recordAuthAttempt('login', true, 'local');
     recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
 
     res.json({ token });
   } catch (error) {
     // Enregistrer l'échec de la connexion
+    logger.logAuth('login', false, 'local', req.body.email, `- Error: ${error.message}`);
+    logger.logError(error, 'AUTH_LOGIN');
     recordAuthAttempt('login', false, 'local');
     recordAuthDuration('login', 'local', (Date.now() - startTime) / 1000);
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
@@ -115,6 +122,7 @@ exports.login = async (req, res) => {
 exports.logout = (req, res) => {
   // Pour JWT stateless, le logout se fait côté client (suppression du token)
   // Ici, on peut juste renvoyer un message de succès
+  logger.logAuth('logout', true, 'local', req.userData?.email || 'unknown');
   recordAuthAttempt('logout', true, 'local');
   res.json({ message: 'Déconnexion réussie' });
 };
@@ -127,6 +135,7 @@ exports.me = async (req, res) => {
     }
     res.json(user);
   } catch (error) {
+    logger.logError(error, 'AUTH_ME');
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
@@ -156,6 +165,7 @@ exports.getProfileStatus = async (req, res) => {
       }
     });
   } catch (error) {
+    logger.logError(error, 'AUTH_PROFILE_STATUS');
     res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
