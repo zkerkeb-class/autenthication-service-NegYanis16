@@ -1,0 +1,18 @@
+# Variables d'environnement
+.env
+.env.local
+.env.dev
+.env.prod
+env.dev
+env.prod
+
+# Dépendances
+node_modules/
+
+# Logs
+logs
+npm-debug.log*
+
+# Fichiers temporaires
+.DS_Store
+Thumbs.db
